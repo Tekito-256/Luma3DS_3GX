@@ -1,6 +1,7 @@
 .vscode
 out
 build
+ctrpf-test
 arm11/build
 sysmodules/loader/build
 sysmodules/rosalina/build
