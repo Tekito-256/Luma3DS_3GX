@@ -3,6 +3,8 @@
 #include <3ds/types.h>
 #include "MyThread.h"
 #include "plgldr.h"
+#include "ifile.h"
+#include "3gx.h"
 
 void        PluginLoader__Init(void);
 bool        PluginLoader__IsEnabled(void);
@@ -34,6 +36,8 @@ u32		    loadExeFunc(void* startAddr, void* endAddr, void* args);
 
 bool     TryToLoadPlugin(Handle process);
 void    PLG__NotifyEvent(PLG_Event event, bool signal);
+
+Result   OpenFile(IFile *file, const char *path);
 
 typedef enum
 {
@@ -83,10 +87,25 @@ typedef struct
     bool            isSwapFunctionset;
     u8              pluginMemoryStrategy;
     u32             exeLoadChecksum;
-    u32             swapLoadChecksum;    
+    u32             swapLoadChecksum;
 }   PluginLoaderContext;
 
+typedef struct {
+    bool isEnabled;
+    u32 size;
+    u32 startAddr;
+    IFile file;
+} Extension3GXX;
+
+typedef struct {
+    bool isEmbedded;
+    u32 nbSymbols;
+    _3gx_Symbol *symbolTable;
+    char *nameTable;
+} SymbolInfo;
+
 extern PluginLoaderContext PluginLoaderCtx;
+extern Extension3GXX Ext3GXX;
 
 // Used by the custom loader command 0x101 (ControlApplicationMemoryModeOverride)
 typedef struct ControlApplicationMemoryModeOverrideConfig {

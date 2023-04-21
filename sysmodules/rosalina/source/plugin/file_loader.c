@@ -7,6 +7,10 @@
 #include "ifile.h"
 #include "utils.h"
 
+SymbolInfo SymInfo;
+
+extern u32 PluginStartAddr;
+
 // Use a global to avoid stack overflow, those structs are quite heavy
 static FS_DirectoryEntry   g_entries[10];
 
@@ -100,7 +104,7 @@ exit:
     return res;
 }
 
-static Result   OpenFile(IFile *file, const char *path)
+Result   OpenFile(IFile *file, const char *path)
 {
     return IFile_Open(file, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""), fsMakePath(PATH_ASCII, path), FS_OPEN_READ);
 }
@@ -142,6 +146,20 @@ static Result   CheckPluginCompatibility(_3gx_Header *header, u32 processTitle)
     return -1;
 }
 
+u32 SearchSymbolByName(const char *name)
+{
+    for(u32 i = 0; i < SymInfo.nbSymbols; i++)
+    {
+        _3gx_Symbol *sym = &SymInfo.symbolTable[i];
+        if(strcmp(name, SymInfo.nameTable + sym->nameOffset) == 0)
+        {
+            return sym->address;
+        }
+    }
+
+    return 0;
+}
+
 bool     TryToLoadPlugin(Handle process)
 {
     u64             tid;
@@ -160,6 +178,11 @@ bool     TryToLoadPlugin(Handle process)
         10 * 1024 * 1024,  // 10 MiB
         5 * 1024 * 1024, // 5 MiB (Reserved)
     };
+
+    SymInfo.isEmbedded = false;
+    SymInfo.symbolTable = NULL;
+    SymInfo.nameTable = NULL;
+    PluginStartAddr = 0x7000100;
 
     // Get title id
     svcGetProcessInfo((s64 *)&tid, process, 0x10001);
@@ -235,8 +258,14 @@ bool     TryToLoadPlugin(Handle process)
     // Check titles compatibility
     if (!res) res = CheckPluginCompatibility(header, (u32)tid);
 
+    if(header->symtable.nbSymbols)
+    {
+        SymInfo.isEmbedded = true;
+        SymInfo.nbSymbols = header->symtable.nbSymbols;
+    }
+
     // Read code
-    if (!res && R_FAILED(res = Read_3gx_LoadSegments(&plugin, header, ctx->memblock.memblock + sizeof(PluginHeader)))) {
+    if (!res && R_FAILED(res = Read_3gx_LoadSegments(&plugin, header, ctx->memblock.memblock + sizeof(PluginHeader), tid))) {
         if (res == MAKERESULT(RL_PERMANENT, RS_INVALIDARG, RM_LDR, RD_NO_DATA)) ctx->error.message = "This plugin requires a loading function.";
         else if (res == MAKERESULT(RL_PERMANENT, RS_INVALIDARG, RM_LDR, RD_INVALID_ADDRESS)) ctx->error.message = "This plugin file is corrupted.";
         else ctx->error.message = "Couldn't read plugin's code";
@@ -251,9 +280,14 @@ bool     TryToLoadPlugin(Handle process)
     pluginHeader->version = header->version;
     // Code size must be page aligned
     exeHdr = &header->executable;
-    pluginHeader->exeSize = (sizeof(PluginHeader) + exeHdr->codeSize + exeHdr->rodataSize + exeHdr->dataSize + exeHdr->bssSize + 0x1000) & ~0xFFF;
+    pluginHeader->exeSize = (sizeof(PluginHeader) + exeHdr->codeSize + exeHdr->rodataSize + exeHdr->dataSize + exeHdr->bssSize + 0x1000);
+    if(SymInfo.isEmbedded)
+    {
+        pluginHeader->exeSize += (fileSize - header->symtable.symbolsOffset);
+    }
+    pluginHeader->exeSize &= ~0xFFF;
     pluginHeader->heapVA = 0x06000000;
-    pluginHeader->heapSize = g_memBlockSize - pluginHeader->exeSize;
+    pluginHeader->heapSize = g_memBlockSize - pluginHeader->exeSize - Ext3GXX.size;
     pluginHeader->plgldrEvent = ctx->plgEventPA;
     pluginHeader->plgldrReply = ctx->plgReplyPA;
 

@@ -20,7 +20,8 @@ gamePatchFunc:
 startplugin:
     adr		r0, g_savedGameInstr
 	push    {r0}
-    ldr     r5, =0x07000100
+    adr     r5, PluginStartAddr
+    ldr     r5, [r5]
     blx     r5
     add		sp, sp, #4
 
@@ -34,3 +35,7 @@ exit:
 .global g_savedGameInstr
 g_savedGameInstr:
     .word 0, 0
+
+.global PluginStartAddr
+PluginStartAddr:
+    .word 0

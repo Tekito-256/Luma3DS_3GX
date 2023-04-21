@@ -36,6 +36,14 @@ typedef struct PACKED
 
 typedef struct PACKED
 {
+    u32             address;
+    u16             size;
+    u16             flags;
+    u32             nameOffset;
+} _3gx_Symbol;
+
+typedef struct PACKED
+{
     u32             nbSymbols;
     u32             symbolsOffset;
     u32             nameTableOffset;
@@ -70,7 +78,7 @@ typedef struct PACKED
 Result  Check_3gx_Magic(IFile *file);
 Result  Read_3gx_Header(IFile *file, _3gx_Header *header);
 Result  Read_3gx_ParseHeader(IFile *file, _3gx_Header *header);
-Result  Read_3gx_LoadSegments(IFile *file, _3gx_Header *header, void *dst);
+Result  Read_3gx_LoadSegments(IFile *file, _3gx_Header *header, void *dst, u64 tid);
 Result  Read_3gx_EmbeddedPayloads(IFile *file, _3gx_Header *header);
 Result  Set_3gx_LoadParams(u32* loadFunc, u32* params);
 void	Reset_3gx_LoadParams(void);

@@ -7,6 +7,8 @@
 
 u32  g_loadExeArgs[0x4];
 
+extern SymbolInfo SymInfo;
+
 static inline u32 invertEndianness(u32 val)
 {
     return ((val & 0xFF) << 24) | ((val & 0xFF00) << 8) | ((val & 0xFF0000) >> 8) | ((val & 0xFF000000) >> 24);
@@ -89,7 +91,7 @@ Result Read_3gx_ParseHeader(IFile *file, _3gx_Header *header)
     return res;
 }
 
-Result  Read_3gx_LoadSegments(IFile *file, _3gx_Header *header, void *dst)
+Result  Read_3gx_LoadSegments(IFile *file, _3gx_Header *header, void *dst, u64 tid)
 {
     u32                 size;
     u64                 total;
@@ -100,7 +102,44 @@ Result  Read_3gx_LoadSegments(IFile *file, _3gx_Header *header, void *dst)
     file->pos = exeHdr->codeOffset;
     size = exeHdr->codeSize + exeHdr->rodataSize + exeHdr->dataSize;
     res = IFile_Read(file, &total, dst, size);
-    
+
+    if(R_SUCCEEDED(res) && SymInfo.isEmbedded)
+    {
+        char path[256];
+        u32 symtableSize = file->size - header->symtable.symbolsOffset;
+
+        //size += symtableSize;
+
+        // Read symbols
+        file->pos = header->symtable.symbolsOffset;
+        res = IFile_Read(file, &total, dst + size, symtableSize);
+
+        SymInfo.symbolTable = (_3gx_Symbol *)((u32)dst + size);
+        SymInfo.nameTable = (char *)(SymInfo.symbolTable + SymInfo.nbSymbols);
+
+        // Load extension
+        sprintf(path, "/luma/plugins/%016llX/extension.3gxx", tid);
+
+        if(res == 0 && OpenFile(&Ext3GXX.file, path) == 0)
+        {
+            u64 extSize = 0;
+            u32 addr = ((u32)dst + size + symtableSize + 0x1000) & ~0xFFF;
+
+            IFile_GetSize(&Ext3GXX.file, &extSize);
+            res = IFile_Read(&Ext3GXX.file, &total, (void *)(addr + 0x100), extSize);
+
+            memset((void *)addr, 0, 0x100);
+            memcpy((void *)addr, (void *)&SymInfo, sizeof(SymbolInfo));
+
+            Ext3GXX.isEnabled = true;
+            Ext3GXX.size = (extSize + 0x1000) & ~0xFFF;
+            Ext3GXX.startAddr = addr;
+        }
+
+        IFile_Close(&Ext3GXX.file);
+
+        file->pos = exeHdr->codeOffset;
+    }
     
     if (!res && !ctx->isExeLoadFunctionset) return MAKERESULT(RL_PERMANENT, RS_INVALIDARG, RM_LDR, RD_NO_DATA);
     u32 checksum = 0;

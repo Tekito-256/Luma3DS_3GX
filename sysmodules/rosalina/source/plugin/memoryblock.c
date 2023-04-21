@@ -11,6 +11,9 @@ u32  g_loadSaveSwapArgs[4];
 char g_swapFileName[256];
 u32  g_memBlockSize = 5 * 1024 * 1024;
 
+extern u32 PluginStartAddr;
+extern SymbolInfo SymInfo;
+
 Result     MemoryBlock__SetSize(u32 size) {
     PluginLoaderContext *ctx = &PluginLoaderCtx;
     MemoryBlock *memblock = &ctx->memblock;
@@ -216,8 +219,23 @@ Result     MemoryBlock__MountInProcess(void)
         return res;
     }
 
+    // Extension
+    if(Ext3GXX.isEnabled)
+    {
+        if (R_FAILED((res = svcMapProcessMemoryEx(target, 0x07500000, CUR_PROCESS_HANDLE, Ext3GXX.startAddr, Ext3GXX.size))))
+        {
+            static char msg[256];
+            sprintf(msg, "%08lX %08lX", Ext3GXX.startAddr, Ext3GXX.size);
+            error->message = msg;
+            error->code = res;
+            return res;
+        }
+
+        PluginStartAddr = 0x7500100;
+    }
+
     // Heap (to be used by the plugin)
-    if (R_FAILED((res = svcMapProcessMemoryEx(target, header->heapVA, CUR_PROCESS_HANDLE, (u32)memblock->memblock + header->exeSize, header->heapSize))))
+    if (R_FAILED((res = svcMapProcessMemoryEx(target, header->heapVA, CUR_PROCESS_HANDLE, (u32)memblock->memblock + header->exeSize + Ext3GXX.size, header->heapSize))))
     {
         error->message = "Couldn't map heap memory block";
         error->code = res;
@@ -234,6 +252,7 @@ Result     MemoryBlock__UnmountFromProcess(void)
     Result  res = 0;
 
     res = svcUnmapProcessMemoryEx(target, 0x07000000, header->exeSize);
+    res |= svcUnmapProcessMemoryEx(target, 0x07500000, Ext3GXX.size);
     res |= svcUnmapProcessMemoryEx(target, header->heapVA, header->heapSize);
 
     return res;

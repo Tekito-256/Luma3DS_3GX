@@ -16,6 +16,7 @@
 
 static const char *g_title = "Plugin loader";
 PluginLoaderContext PluginLoaderCtx;
+Extension3GXX Ext3GXX;
 extern u32 g_blockMenuOpen;
 
 void        IR__Patch(void);
@@ -26,6 +27,7 @@ void        PluginLoader__Init(void)
     PluginLoaderContext *ctx = &PluginLoaderCtx;
 
     memset(ctx, 0, sizeof(PluginLoaderContext));
+    memset(&Ext3GXX, 0, sizeof(Extension3GXX));
 
     s64 pluginLoaderFlags = 0;
 
