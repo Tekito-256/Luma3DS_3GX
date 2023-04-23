@@ -108,13 +108,11 @@ Result  Read_3gx_LoadSegments(IFile *file, _3gx_Header *header, void *dst, u64 t
         char path[256];
         u32 symtableSize = file->size - header->symtable.symbolsOffset;
 
-        //size += symtableSize;
-
         // Read symbols
         file->pos = header->symtable.symbolsOffset;
-        res = IFile_Read(file, &total, dst + size, symtableSize);
+        res = IFile_Read(file, &total, dst + size + exeHdr->bssSize, symtableSize);
 
-        SymInfo.symbolTable = (_3gx_Symbol *)((u32)dst + size);
+        SymInfo.symbolTable = (_3gx_Symbol *)((u32)dst + size + exeHdr->bssSize);
         SymInfo.nameTable = (char *)(SymInfo.symbolTable + SymInfo.nbSymbols);
 
         // Load extension
@@ -123,7 +121,7 @@ Result  Read_3gx_LoadSegments(IFile *file, _3gx_Header *header, void *dst, u64 t
         if(res == 0 && OpenFile(&Ext3GXX.file, path) == 0)
         {
             u64 extSize = 0;
-            u32 addr = ((u32)dst + size + symtableSize + 0x1000) & ~0xFFF;
+            u32 addr = ((u32)dst + size + exeHdr->bssSize + symtableSize + 0x1000) & ~0xFFF;
 
             IFile_GetSize(&Ext3GXX.file, &extSize);
             res = IFile_Read(&Ext3GXX.file, &total, (void *)(addr + 0x100), extSize);
@@ -134,9 +132,9 @@ Result  Read_3gx_LoadSegments(IFile *file, _3gx_Header *header, void *dst, u64 t
             Ext3GXX.isEnabled = true;
             Ext3GXX.size = (extSize + 0x1000) & ~0xFFF;
             Ext3GXX.startAddr = addr;
-        }
 
-        IFile_Close(&Ext3GXX.file);
+            IFile_Close(&Ext3GXX.file);
+        }
 
         file->pos = exeHdr->codeOffset;
     }

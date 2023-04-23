@@ -212,7 +212,7 @@ Result     MemoryBlock__MountInProcess(void)
     Result       res = 0;
 
     // Executable
-    if (R_FAILED((res = svcMapProcessMemoryEx(target, 0x07000000, CUR_PROCESS_HANDLE, (u32)memblock->memblock, header->exeSize))))
+    if (R_FAILED((res = svcMapProcessMemoryEx(target, 0x07000000, CUR_PROCESS_HANDLE, (u32)memblock->memblock, header->exeSize + Ext3GXX.size + 0x1000))))
     {
         error->message = "Couldn't map exe memory block";
         error->code = res;

@@ -183,6 +183,7 @@ bool     TryToLoadPlugin(Handle process)
     SymInfo.symbolTable = NULL;
     SymInfo.nameTable = NULL;
     PluginStartAddr = 0x7000100;
+    Ext3GXX.isEnabled = false;
 
     // Get title id
     svcGetProcessInfo((s64 *)&tid, process, 0x10001);
@@ -297,7 +298,10 @@ bool     TryToLoadPlugin(Handle process)
     // Copy header to memblock
     memcpy(ctx->memblock.memblock, pluginHeader, sizeof(PluginHeader));
     // Clear heap
-    memset(ctx->memblock.memblock + pluginHeader->exeSize, 0, pluginHeader->heapSize);
+    memset(ctx->memblock.memblock + pluginHeader->exeSize + Ext3GXX.size, 0, pluginHeader->heapSize);
+
+    *(u32 *)0x7000050 = Ext3GXX.startAddr;
+    *(u32 *)0x7000054 = Ext3GXX.size;
 
     // Enforce RWX mmu mapping
     svcControlProcess(process, PROCESSOP_SET_MMU_TO_RWX, 0, 0);
