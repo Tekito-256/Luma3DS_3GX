@@ -300,9 +300,6 @@ bool     TryToLoadPlugin(Handle process)
     // Clear heap
     memset(ctx->memblock.memblock + pluginHeader->exeSize + Ext3GXX.size, 0, pluginHeader->heapSize);
 
-    *(u32 *)0x7000050 = Ext3GXX.startAddr;
-    *(u32 *)0x7000054 = Ext3GXX.size;
-
     // Enforce RWX mmu mapping
     svcControlProcess(process, PROCESSOP_SET_MMU_TO_RWX, 0, 0);
     // Ask the kernel to signal when the process is about to be terminated
